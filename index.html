@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <script src="https://upcdn.b0.upaiyun.com/libs/jquery/jquery-2.0.2.min.js">
+    </script>
+    <title>新闻瀑布流</title>
+    <style>
+        main {
+            width: 900px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .container {
+            width: calc(33.3333% - 20px);
+            outline: 1px solid rgb(223, 223, 223);
+            display: flow-root;
+            margin: 10px;
+            position: absolute;
+        }
+
+        .news {
+            border-bottom: 1px solid rgb(223, 223, 223);
+            margin: 10px;
+            margin-bottom: 20px;
+        }
+
+        img {
+            width: 100%;
+        }
+
+        h4 {
+            margin-top: 10px;
+            margin-bottom: 0;
+        }
+
+        #load {
+            visibility: hidden;
+            position: absolute;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="container" style="opacity: 1;">
+            <div class="news">
+                <a href=""><img src="http://n.sinaimg.cn/tech/transform/200/w600h400/20181130/wJnv-hphsupx6227341.jpg"
+                        alt=""></a>
+                <h4>975万人民币可买下私人小岛</h3>
+            </div>
+        </div>
+    </main>
+    <div id="load">hello world</div>
+    <script>
+        var waterfall = {
+            init: function () {
+                this.perPageCount = 9;
+                this.curPage = 1;
+                this.loading = false;
+                this.clock
+                this.colHeightNum = []
+                this.colWidth = $('.container').outerWidth(true);
+                this.colNum = Math.floor($('main').outerWidth() / this.colWidth)
+                for (var i = 0; i < this.colNum; i++) {
+                    this.colHeightNum[i] = 0;
+                }
+                this.update();
+                this.bind()
+            },
+            bind: function () {
+                var _this = this
+                $(window).on('scroll', function () {
+                    if (_this.loading) { return }
+                    if ($('#load').offset().top < $(window).scrollTop() + $(window).height()) {
+                        if (_this.clock) {
+                            clearTimeout(_this.clock)
+                        }
+                        _this.clock = setTimeout(_this.update(), 500)
+
+                    }
+                })
+            },
+            update: function () {
+                var _this = this
+                this.getData(function (data) {
+                    $.each(data, function (index, item) {
+                        var $node = _this.createNode(item)
+                        $node.find('img').load(function () {
+                            $('main').append($node)
+                            _this.putNode($node)
+                        })
+                    })
+                })
+            },
+            getData: function (callback) {
+                this.loading = true;
+                var _this = this;
+                $.ajax({
+                    url: 'http://platform.sina.com.cn/slide/album_tech',
+                    dataType: 'jsonp',
+                    jsonp: "jsoncallback",
+                    data: {
+                        app_key: '1271687855',
+                        num: _this.perPageCount,
+                        page: _this.curPage
+                    }
+                }).done(function (ret) {
+                    if (ret && ret.status && ret.status.code === "0") {
+                        callback(ret.data);   //如果数据没问题，那么生成节点并摆放好位置
+                        _this.curPage++
+                        _this.loading = false;
+                    } else {
+                        console.log('get error data');
+                    }
+                });
+            },
+            createNode: function (item) {
+                var html = '<div class="container">'
+                html += '<div class="news">'
+                html += '<a href="' + item.url + '"><img src="' + item.img_url + '" alt=""></a>'
+                html += '<h4>' + item.short_name + '</h3>'
+                html += '</div>'
+                html += '</div>'
+                var $node = $(html)
+                return $node
+            },
+            putNode: function ($node) {
+                var minHeight = this.colHeightNum[0];
+                var minIndex = 0;
+                var _this = this;
+                for (var i = 0; i < this.colNum; i++) {
+                    if (this.colHeightNum[i] < minHeight) {
+                        minIndex = i;
+                        minHeight = this.colHeightNum[i];
+                    }
+                }
+                $node.css({
+                    top: minHeight,
+                    left: _this.colWidth * minIndex
+                })
+                _this.colHeightNum[minIndex] += $node.outerHeight(true);
+                var maxHeight = this.colHeightNum[0];
+                var maxIndex = 0;
+                for (var i = 0; i < this.colNum; i++) {
+                    if (this.colHeightNum[i] > maxHeight) {
+                        maxIndex = i;
+                        maxHeight = this.colHeightNum[i];
+                    }
+                }
+                $('#load').css({
+                    top: maxHeight
+                })
+            }
+        }
+        waterfall.init()
+    </script>
+</body>
+
+</html>
